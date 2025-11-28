@@ -230,8 +230,113 @@ app.delete(
 );
 
 // ===========================================================
-//        DIRECTOR ROUTES (TUGAS PRAKTIKUM KAMU BUAT)
+//                       DIRECTOR ROUTES
 // ===========================================================
+
+// GET all directors
+app.get('/directors', async (req, res, next) => {
+  const sql = `SELECT * FROM directors ORDER BY id ASC`;
+
+  try {
+    const result = await db.query(sql);
+    res.json(result.rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET director by ID
+app.get('/directors/:id', async (req, res, next) => {
+  const sql = `SELECT * FROM directors WHERE id = $1`;
+
+  try {
+    const result = await db.query(sql, [req.params.id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Director tidak ditemukan' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// CREATE director (user login)
+app.post('/directors', authenticateToken, async (req, res, next) => {
+  const { name } = req.body;
+
+  if (!name) {
+    return res.status(400).json({ error: 'Nama director wajib diisi' });
+  }
+
+  const sql = `
+    INSERT INTO directors (name)
+    VALUES ($1)
+    RETURNING *
+  `;
+
+  try {
+    const result = await db.query(sql, [name]);
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// UPDATE director (admin only)
+app.put(
+  '/directors/:id',
+  [authenticateToken, authorizeRole('admin')],
+  async (req, res, next) => {
+
+    const { name } = req.body;
+
+    const sql = `
+      UPDATE directors
+      SET name = $1
+      WHERE id = $2
+      RETURNING *
+    `;
+
+    try {
+      const result = await db.query(sql, [name, req.params.id]);
+
+      if (result.rowCount === 0) {
+        return res.status(404).json({ error: 'Director tidak ditemukan' });
+      }
+
+      res.json(result.rows[0]);
+
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// DELETE director (admin only)
+app.delete(
+  '/directors/:id',
+  [authenticateToken, authorizeRole('admin')],
+  async (req, res, next) => {
+
+    const sql = `DELETE FROM directors WHERE id = $1 RETURNING *`;
+
+    try {
+      const result = await db.query(sql, [req.params.id]);
+
+      if (result.rowCount === 0) {
+        return res.status(404).json({ error: 'Director tidak ditemukan' });
+      }
+
+      res.json({ message: 'Director berhasil dihapus' });
+
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 
 
 // === FALLBACK ROUTE ===
