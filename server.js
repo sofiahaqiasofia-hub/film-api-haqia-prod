@@ -3,12 +3,10 @@ const express = require('express');
 const cors = require('cors');
 const db = require('./db.js');  
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const { authenticateToken, authorizeRole } = require('./middleware/auth.js');
 
 const app = express();
 const PORT = process.env.PORT || 3300;
-const JWT_SECRET = process.env.JWT_SECRET;
 
 // Middleware
 app.use(express.json());
@@ -30,7 +28,7 @@ app.post('/auth/register', async (req, res, next) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
         const sql = 'INSERT INTO users (username, password, role) VALUES ($1, $2, $3) RETURNING id, username';
-        const result = await db.query(sql, [username, toLowerCase(), hashedPassword, 'user']);
+        const result = await db.query(sql, [username.toLowerCase(), hashedPassword, 'user']);
         res.status(201).json(result.rows[0] );
     } catch (err) {
         if (err.code === '23505') { //Kode error unik PostgreSQL
@@ -43,11 +41,11 @@ app.post('/auth/register', async (req, res, next) => {
 
 
 // ===FAILBACK & ERROR HANDLING===
-app.use((req, res) => {
+app.use((_req, res) => {
   res.status(404).json({ error: 'Rute tidak ditemukan' });
 }   );
 
-app.use((err, req, res, _next) => {
+app.use((err, _req, res, _next) => {
   console.error('[SERVER ERROR]', err.stack);
   res.status(500).json({ error: 'Terjadi kesalahan pada server' });
 }   );
